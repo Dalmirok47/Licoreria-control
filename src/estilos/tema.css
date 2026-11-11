@@ -1,0 +1,13 @@
+:root {
+  --fondo: #0B0B0B;
+  --tarjeta: #161616;
+  --dorado: #D4AF37;
+  --champan: #F0D78C;
+  --texto: #F5F0E1;
+  --texto-suave: #A8A294;
+  --venta: #4CAF7A;
+  --obsequio: #5B9BD5;
+  --bar: #B58CE0;
+  --perdida: #F0706B;
+}
+body { background: var(--fondo); color: var(--texto); margin: 0; font-family: Inter, system-ui, sans-serif; }
