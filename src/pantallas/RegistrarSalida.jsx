@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { subirEvidencia } from '../lib/evidencia'
 import FiltroCategorias from '../componentes/FiltroCategorias'
 import TarjetaProducto from '../componentes/TarjetaProducto'
 import SelectorMesa from '../componentes/SelectorMesa'
+import CapturaFoto from '../componentes/CapturaFoto'
 import '../estilos/registrar.css'
 
+// Para quitar un tipo de salida, borra su línea de esta lista
 const TIPOS = [
   { id: 'venta', nombre: 'Venta', color: 'var(--venta)' },
-  { id: 'obsequio', nombre: 'Obsequio', color: 'var(--obsequio)' },
   { id: 'bar', nombre: 'Bar', color: 'var(--bar)' },
+  { id: 'dueno', nombre: 'Dueños', color: 'var(--dueno)' },
+  { id: 'obsequio', nombre: 'Obsequio', color: 'var(--obsequio)' },
   { id: 'perdida', nombre: 'Pérdida', color: 'var(--perdida)' },
 ]
 const ENTRADA = { id: 'entrada', nombre: 'Entrada', color: 'var(--champan)' }
+
+// Tipos donde la foto es obligatoria. Sugerido: ['obsequio', 'dueno', 'perdida']
+const FOTO_OBLIGATORIA = []
 
 const CLAVE_MESA = 'jn:ultimaMesa'
 const SIN_MESA = { zona: null, mesa: null }
@@ -34,6 +41,7 @@ function guardarUltimaMesa(valor) {
 export default function RegistrarSalida({ perfil }) {
   const [categorias, setCategorias] = useState([])
   const [productos, setProductos] = useState([])
+  const [duenos, setDuenos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState('')
 
@@ -44,20 +52,23 @@ export default function RegistrarSalida({ perfil }) {
   const [tipo, setTipo] = useState('venta')
   const [cantidad, setCantidad] = useState(1)
   const [mesa, setMesa] = useState(leerUltimaMesa)
+  const [duenoId, setDuenoId] = useState(null)
   const [motivo, setMotivo] = useState('')
   const [nota, setNota] = useState('')
+  const [foto, setFoto] = useState(null)
 
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
 
   const cargar = useCallback(async () => {
-    const [c, p] = await Promise.all([
+    const [c, p, d] = await Promise.all([
       supabase.from('categorias').select('id, nombre').order('orden'),
       supabase
         .from('stock_actual')
         .select('id, nombre, categoria_id, foto_url, stock')
         .order('nombre'),
+      supabase.from('duenos').select('id, nombre').eq('activo', true).order('nombre'),
     ])
     if (c.error || p.error) {
       console.error(c.error || p.error)
@@ -67,6 +78,8 @@ export default function RegistrarSalida({ perfil }) {
       setProductos(p.data)
       setErrorCarga('')
     }
+    if (d.error) console.error(d.error)
+    setDuenos(d.data || [])
     setCargando(false)
   }, [])
 
@@ -93,11 +106,15 @@ export default function RegistrarSalida({ perfil }) {
 
   const pideMesa = tipo === 'venta' || tipo === 'obsequio'
   const pideMotivo = tipo === 'obsequio' || tipo === 'perdida'
+  const pideDueno = tipo === 'dueno'
+  const pideNota = tipo === 'bar' || tipo === 'dueno'
+  const fotoObligatoria = FOTO_OBLIGATORIA.includes(tipo)
   const excede = elegido && tipo !== 'entrada' && cantidad > elegido.stock
 
   function elegir(p) {
     setElegidoId(p.id)
     setCantidad(1)
+    setFoto(null)
     setError('')
   }
 
@@ -113,28 +130,45 @@ export default function RegistrarSalida({ perfil }) {
       setError('Elige la mesa.')
       return
     }
+    if (pideDueno && !duenoId) {
+      setError('Elige el dueño.')
+      return
+    }
     if (pideMotivo && !motivo.trim()) {
       setError('El motivo es obligatorio.')
       return
     }
-
-    setGuardando(true)
-    const { error: err } = await supabase.from('movimientos').insert({
-      producto_id: elegido.id,
-      tipo,
-      cantidad,
-      zona: pideMesa ? mesa.zona : null,
-      mesa: pideMesa ? mesa.mesa : null,
-      motivo: pideMotivo ? motivo.trim() : null,
-      nota: tipo === 'bar' && nota.trim() ? nota.trim() : null,
-    })
-    setGuardando(false)
-
-    if (err) {
-      console.error(err)
-      setError('No se pudo guardar. Intenta de nuevo.')
+    if (fotoObligatoria && !foto) {
+      setError('La foto es obligatoria para este tipo de salida.')
       return
     }
+
+    setGuardando(true)
+    try {
+      let foto_path = null
+      if (foto) {
+        const { data } = await supabase.auth.getUser()
+        foto_path = await subirEvidencia(foto, data.user.id)
+      }
+      const { error: err } = await supabase.from('movimientos').insert({
+        producto_id: elegido.id,
+        tipo,
+        cantidad,
+        zona: pideMesa ? mesa.zona : null,
+        mesa: pideMesa ? mesa.mesa : null,
+        dueno_id: pideDueno ? duenoId : null,
+        motivo: pideMotivo ? motivo.trim() : null,
+        nota: pideNota && nota.trim() ? nota.trim() : null,
+        foto_path,
+      })
+      if (err) throw err
+    } catch (err) {
+      console.error(err)
+      setError('No se pudo guardar. Intenta de nuevo.')
+      setGuardando(false)
+      return
+    }
+    setGuardando(false)
 
     if (pideMesa) guardarUltimaMesa(mesa)
     const hora = new Date().toLocaleTimeString('es-CO', {
@@ -149,6 +183,7 @@ export default function RegistrarSalida({ perfil }) {
     setCantidad(1)
     setMotivo('')
     setNota('')
+    setFoto(null)
     cargar()
   }
 
@@ -236,6 +271,29 @@ export default function RegistrarSalida({ perfil }) {
 
               {pideMesa && <SelectorMesa valor={mesa} onCambiar={setMesa} />}
 
+              {pideDueno && (
+                <div className='grupo'>
+                  <span className='etiqueta'>Dueño</span>
+                  {duenos.length === 0 ? (
+                    <p className='aviso-stock'>No hay dueños registrados. Agrégalos en Supabase (tabla duenos).</p>
+                  ) : (
+                    <div className='segmento'>
+                      {duenos.map((d) => (
+                        <button
+                          key={d.id}
+                          type='button'
+                          className={'seg' + (duenoId === d.id ? ' activo' : '')}
+                          aria-pressed={duenoId === d.id}
+                          onClick={() => setDuenoId(d.id)}
+                        >
+                          {d.nombre}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {pideMotivo && (
                 <div className='grupo'>
                   <label className='etiqueta' htmlFor='motivo'>Motivo (obligatorio)</label>
@@ -249,18 +307,20 @@ export default function RegistrarSalida({ perfil }) {
                 </div>
               )}
 
-              {tipo === 'bar' && (
+              {pideNota && (
                 <div className='grupo'>
                   <label className='etiqueta' htmlFor='nota'>Nota (opcional)</label>
                   <input
                     id='nota'
                     className='campo'
-                    placeholder='Ej: mojitos'
+                    placeholder={tipo === 'bar' ? 'Ej: mojitos' : 'Ej: se llevó para la mesa de amigos'}
                     value={nota}
                     onChange={(e) => setNota(e.target.value)}
                   />
                 </div>
               )}
+
+              <CapturaFoto archivo={foto} onCambiar={setFoto} obligatoria={fotoObligatoria} />
 
               {excede && (
                 <p className='aviso-stock'>

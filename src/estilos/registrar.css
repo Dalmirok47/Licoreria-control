@@ -211,3 +211,45 @@
 @media (min-width: 1100px) {
   .rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+:root { --dueno: #E8A24D; }
+
+.foto-fila { display: flex; align-items: center; gap: 12px; }
+.foto-boton {
+  position: relative;
+  flex: 1;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  cursor: pointer;
+  font: 600 14px Inter, sans-serif;
+  color: var(--dorado);
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px dashed rgba(212, 175, 55, 0.6);
+}
+.foto-boton:focus-within { box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2); }
+.foto-boton input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.foto-mini { position: relative; width: 64px; height: 64px; flex: none; }
+.foto-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+}
+.foto-quitar {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: 700;
+  color: #0B0B0B;
+  background: var(--perdida);
+}
