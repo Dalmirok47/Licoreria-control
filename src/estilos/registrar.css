@@ -253,3 +253,5 @@
   color: #0B0B0B;
   background: var(--perdida);
 }
+
+:root { --empleado: #4FC3C7; }

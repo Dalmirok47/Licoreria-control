@@ -12,13 +12,19 @@ const TIPOS = [
   { id: 'venta', nombre: 'Venta', color: 'var(--venta)' },
   { id: 'bar', nombre: 'Bar', color: 'var(--bar)' },
   { id: 'dueno', nombre: 'Dueños', color: 'var(--dueno)' },
-  { id: 'obsequio', nombre: 'Obsequio', color: 'var(--obsequio)' },
-  { id: 'perdida', nombre: 'Pérdida', color: 'var(--perdida)' },
+  { id: 'empleado', nombre: 'Empleados', color: 'var(--empleado)' },
+  { id: 'baja', nombre: 'Baja', color: 'var(--perdida)' },
 ]
 const ENTRADA = { id: 'entrada', nombre: 'Entrada', color: 'var(--champan)' }
 
-// Tipos donde la foto es obligatoria. Sugerido: ['obsequio', 'dueno', 'perdida']
-const FOTO_OBLIGATORIA = []
+const EJEMPLOS = {
+  venta: 'Ej: media de aguardiente y 3 cervezas',
+  bar: 'Ej: mojitos',
+  dueno: 'Ej: la tomó en la mesa de amigos',
+  empleado: 'Ej: se la llevó para la casa',
+  baja: 'Ej: se rompió, vencida',
+  entrada: 'Ej: pedido del proveedor',
+}
 
 const CLAVE_MESA = 'jn:ultimaMesa'
 const SIN_MESA = { zona: null, mesa: null }
@@ -41,7 +47,7 @@ function guardarUltimaMesa(valor) {
 export default function RegistrarSalida({ perfil }) {
   const [categorias, setCategorias] = useState([])
   const [productos, setProductos] = useState([])
-  const [duenos, setDuenos] = useState([])
+  const [personas, setPersonas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState('')
 
@@ -52,9 +58,8 @@ export default function RegistrarSalida({ perfil }) {
   const [tipo, setTipo] = useState('venta')
   const [cantidad, setCantidad] = useState(1)
   const [mesa, setMesa] = useState(leerUltimaMesa)
-  const [duenoId, setDuenoId] = useState(null)
-  const [motivo, setMotivo] = useState('')
-  const [nota, setNota] = useState('')
+  const [personaId, setPersonaId] = useState(null)
+  const [comentario, setComentario] = useState('')
   const [foto, setFoto] = useState(null)
 
   const [guardando, setGuardando] = useState(false)
@@ -68,7 +73,7 @@ export default function RegistrarSalida({ perfil }) {
         .from('stock_actual')
         .select('id, nombre, categoria_id, foto_url, stock')
         .order('nombre'),
-      supabase.from('duenos').select('id, nombre').eq('activo', true).order('nombre'),
+      supabase.from('personas').select('id, nombre, grupo').eq('activo', true).order('nombre'),
     ])
     if (c.error || p.error) {
       console.error(c.error || p.error)
@@ -79,7 +84,7 @@ export default function RegistrarSalida({ perfil }) {
       setErrorCarga('')
     }
     if (d.error) console.error(d.error)
-    setDuenos(d.data || [])
+    setPersonas(d.data || [])
     setCargando(false)
   }, [])
 
@@ -104,12 +109,18 @@ export default function RegistrarSalida({ perfil }) {
     )
   }, [productos, categoria, busqueda])
 
-  const pideMesa = tipo === 'venta' || tipo === 'obsequio'
-  const pideMotivo = tipo === 'obsequio' || tipo === 'perdida'
-  const pideDueno = tipo === 'dueno'
-  const pideNota = tipo === 'bar' || tipo === 'dueno'
-  const fotoObligatoria = FOTO_OBLIGATORIA.includes(tipo)
+  const pideMesa = tipo === 'venta'
+  const pidePersona = tipo === 'dueno' || tipo === 'empleado'
+  const exigeEvidencia = tipo !== 'entrada'
+  const personasDelTipo = personas.filter((p) => p.grupo === tipo)
   const excede = elegido && tipo !== 'entrada' && cantidad > elegido.stock
+
+  const faltantes = []
+  if (pideMesa && (!mesa.zona || !mesa.mesa)) faltantes.push('la mesa')
+  if (pidePersona && !personaId) faltantes.push(tipo === 'dueno' ? 'el dueño' : 'el empleado')
+  if (exigeEvidencia && !comentario.trim()) faltantes.push('el comentario')
+  if (exigeEvidencia && !foto) faltantes.push('la foto')
+  const listo = faltantes.length === 0
 
   function elegir(p) {
     setElegidoId(p.id)
@@ -123,25 +134,15 @@ export default function RegistrarSalida({ perfil }) {
     setError('')
   }
 
+  function cambiarTipo(id) {
+    setTipo(id)
+    setPersonaId(null)
+    setError('')
+  }
+
   async function guardar() {
     setError('')
-    if (!elegido) return
-    if (pideMesa && (!mesa.zona || !mesa.mesa)) {
-      setError('Elige la mesa.')
-      return
-    }
-    if (pideDueno && !duenoId) {
-      setError('Elige el dueño.')
-      return
-    }
-    if (pideMotivo && !motivo.trim()) {
-      setError('El motivo es obligatorio.')
-      return
-    }
-    if (fotoObligatoria && !foto) {
-      setError('La foto es obligatoria para este tipo de salida.')
-      return
-    }
+    if (!elegido || !listo) return
 
     setGuardando(true)
     try {
@@ -156,9 +157,8 @@ export default function RegistrarSalida({ perfil }) {
         cantidad,
         zona: pideMesa ? mesa.zona : null,
         mesa: pideMesa ? mesa.mesa : null,
-        dueno_id: pideDueno ? duenoId : null,
-        motivo: pideMotivo ? motivo.trim() : null,
-        nota: pideNota && nota.trim() ? nota.trim() : null,
+        persona_id: pidePersona ? personaId : null,
+        motivo: comentario.trim() || null,
         foto_path,
       })
       if (err) throw err
@@ -181,8 +181,7 @@ export default function RegistrarSalida({ perfil }) {
 
     setElegidoId(null)
     setCantidad(1)
-    setMotivo('')
-    setNota('')
+    setComentario('')
     setFoto(null)
     cargar()
   }
@@ -262,7 +261,7 @@ export default function RegistrarSalida({ perfil }) {
                     className={'tipo' + (tipo === t.id ? ' activo' : '')}
                     style={{ '--c': t.color }}
                     aria-pressed={tipo === t.id}
-                    onClick={() => setTipo(t.id)}
+                    onClick={() => cambiarTipo(t.id)}
                   >
                     {t.nombre}
                   </button>
@@ -271,22 +270,24 @@ export default function RegistrarSalida({ perfil }) {
 
               {pideMesa && <SelectorMesa valor={mesa} onCambiar={setMesa} />}
 
-              {pideDueno && (
+              {pidePersona && (
                 <div className='grupo'>
-                  <span className='etiqueta'>Dueño</span>
-                  {duenos.length === 0 ? (
-                    <p className='aviso-stock'>No hay dueños registrados. Agrégalos en Supabase (tabla duenos).</p>
+                  <span className='etiqueta'>{tipo === 'dueno' ? 'Dueño' : 'Empleado'}</span>
+                  {personasDelTipo.length === 0 ? (
+                    <p className='aviso-stock'>
+                      No hay personas registradas en este grupo. Agrégalas en Supabase (tabla personas).
+                    </p>
                   ) : (
                     <div className='segmento'>
-                      {duenos.map((d) => (
+                      {personasDelTipo.map((p) => (
                         <button
-                          key={d.id}
+                          key={p.id}
                           type='button'
-                          className={'seg' + (duenoId === d.id ? ' activo' : '')}
-                          aria-pressed={duenoId === d.id}
-                          onClick={() => setDuenoId(d.id)}
+                          className={'seg' + (personaId === p.id ? ' activo' : '')}
+                          aria-pressed={personaId === p.id}
+                          onClick={() => setPersonaId(p.id)}
                         >
-                          {d.nombre}
+                          {p.nombre}
                         </button>
                       ))}
                     </div>
@@ -294,39 +295,27 @@ export default function RegistrarSalida({ perfil }) {
                 </div>
               )}
 
-              {pideMotivo && (
-                <div className='grupo'>
-                  <label className='etiqueta' htmlFor='motivo'>Motivo (obligatorio)</label>
-                  <input
-                    id='motivo'
-                    className='campo'
-                    placeholder={tipo === 'perdida' ? 'Ej: se rompió, vencida' : 'Ej: cliente frecuente'}
-                    value={motivo}
-                    onChange={(e) => setMotivo(e.target.value)}
-                  />
-                </div>
-              )}
+              <div className='grupo'>
+                <label className='etiqueta' htmlFor='comentario'>
+                  Comentario {exigeEvidencia ? '(obligatorio)' : '(opcional)'}
+                </label>
+                <input
+                  id='comentario'
+                  className='campo'
+                  placeholder={EJEMPLOS[tipo]}
+                  value={comentario}
+                  onChange={(e) => setComentario(e.target.value)}
+                />
+              </div>
 
-              {pideNota && (
-                <div className='grupo'>
-                  <label className='etiqueta' htmlFor='nota'>Nota (opcional)</label>
-                  <input
-                    id='nota'
-                    className='campo'
-                    placeholder={tipo === 'bar' ? 'Ej: mojitos' : 'Ej: se llevó para la mesa de amigos'}
-                    value={nota}
-                    onChange={(e) => setNota(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <CapturaFoto archivo={foto} onCambiar={setFoto} obligatoria={fotoObligatoria} />
+              <CapturaFoto archivo={foto} onCambiar={setFoto} obligatoria={exigeEvidencia} />
 
               {excede && (
                 <p className='aviso-stock'>
                   Supera el stock actual ({elegido.stock}). Revisa la cantidad.
                 </p>
               )}
+              {!listo && <p className='aviso-stock'>Falta: {faltantes.join(', ')}.</p>}
               {error && <p className='error' role='alert'>{error}</p>}
 
               <div className='cantidad-fila'>
@@ -335,7 +324,12 @@ export default function RegistrarSalida({ perfil }) {
                 <span className='cantidad-valor'>{cantidad}</span>
                 <button type='button' className='paso' aria-label='Agregar uno'
                   onClick={() => setCantidad(cantidad + 1)}>+</button>
-                <button type='button' className='boton-dorado' disabled={guardando} onClick={guardar}>
+                <button
+                  type='button'
+                  className='boton-dorado'
+                  disabled={guardando || !listo}
+                  onClick={guardar}
+                >
                   {guardando ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>
