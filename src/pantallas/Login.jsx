@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const DOMINIO = '@jnlicores.app'
+const DOMINIO = '@jnlicores.com'
 
-// "Juan Pérez" -> "juanperez@jnlicores.app"
-const aCorreo = (nombre) =>
-  nombre
+// "Juan Pérez" -> "juanperez@jnlicores.com"
+const aCorreo = (nombre) => {
+  const limpio = nombre
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, '') + DOMINIO
+    .replace(/\s+/g, '')
+  return limpio.includes('@') ? limpio : limpio + DOMINIO
+}
+
+
 
 function IconoOjo({ abierto }) {
   return (
@@ -22,6 +26,7 @@ function IconoOjo({ abierto }) {
     </svg>
   )
 }
+
 
 export default function Login() {
   const [nombre, setNombre] = useState('')
