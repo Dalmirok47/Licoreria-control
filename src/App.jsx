@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import Login from './pantallas/Login'
 import RegistrarSalida from './pantallas/RegistrarSalida'
+import Historial from './pantallas/Historial'
 
 function Cargando() {
   return (
@@ -58,6 +59,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path='/' element={<RegistrarSalida perfil={perfil} />} />
+        <Route path='/historial' element={<Historial perfil={perfil} />} />
         <Route path='*' element={<Navigate to='/' />} />
       </Routes>
     </BrowserRouter>

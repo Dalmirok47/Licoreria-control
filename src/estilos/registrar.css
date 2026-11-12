@@ -255,3 +255,24 @@
 }
 
 :root { --empleado: #4FC3C7; }
+
+.navegacion {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.enlace {
+  padding: 8px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font: 600 14px Inter, sans-serif;
+  color: var(--texto-suave);
+}
+.enlace.activo { background: var(--dorado-grad); color: #0B0B0B; }
+@media (max-width: 480px) {
+  .cabecera-usuario span { display: none; }
+  .enlace { padding: 8px 12px; }
+}

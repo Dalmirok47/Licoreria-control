@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { subirEvidencia } from '../lib/evidencia'
+import Cabecera from '../componentes/Cabecera'              // <- la nueva
 import FiltroCategorias from '../componentes/FiltroCategorias'
 import TarjetaProducto from '../componentes/TarjetaProducto'
 import SelectorMesa from '../componentes/SelectorMesa'
@@ -188,19 +189,7 @@ export default function RegistrarSalida({ perfil }) {
 
   return (
     <div className='registrar'>
-      <header className='cabecera'>
-        <img className='cabecera-logo' src='/logo-jn.png' alt='J&N Licores' />
-        <div className='cabecera-usuario'>
-          <span>{perfil.nombre}</span>
-          <button
-            type='button'
-            className='boton-contorno chico'
-            onClick={() => supabase.auth.signOut()}
-          >
-            Salir
-          </button>
-        </div>
-      </header>
+      <Cabecera perfil={perfil} />
 
       <main className='contenido'>
         <section className='columna-productos'>
