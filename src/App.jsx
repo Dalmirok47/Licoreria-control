@@ -58,10 +58,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-       <Route
-  path='/historial'
-  element={perfil.rol === 'admin' ? <Historial perfil={perfil} /> : <Navigate to='/' />}
-/>
+        <Route path='/' element={<RegistrarSalida perfil={perfil} />} />
+        <Route path='/historial' element={<Historial perfil={perfil} />} />
+        <Route path='*' element={<Navigate to='/' />} />
       </Routes>
     </BrowserRouter>
   )
