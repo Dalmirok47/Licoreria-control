@@ -73,3 +73,20 @@
   color: var(--texto-suave);
 }
 .accion-pdf { position: sticky; bottom: 12px; }
+
+
+.rango { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.fecha-hora { display: flex; flex-direction: column; gap: 8px; }
+.hora-fila { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.campo { color-scheme: dark; }
+select.campo { padding: 0 10px; text-align: center; }
+.quitar-fecha {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 12px Inter, sans-serif;
+  color: var(--texto-suave);
+  text-decoration: underline;
+  cursor: pointer;
+}

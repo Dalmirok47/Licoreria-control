@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Cabecera from '../componentes/Cabecera'
 import '../estilos/historial.css'
+import SelectorFechaHora from '../componentes/SelectorFechaHora'
 
 const TZ = 'America/Bogota'
 const TAM = 40
@@ -189,31 +190,25 @@ export default function Historial({ perfil }) {
           </div>
 
           <div className='rango'>
-            <label>
-              <span className='etiqueta'>Desde (hora Colombia)</span>
-              <input
-                className='campo'
-                type='datetime-local'
-                value={desde}
-                onChange={(e) => {
-                  setDesde(e.target.value)
-                  setPreset(null)
-                }}
-              />
-            </label>
-            <label>
-              <span className='etiqueta'>Hasta (hora Colombia)</span>
-              <input
-                className='campo'
-                type='datetime-local'
-                value={hasta}
-                onChange={(e) => {
-                  setHasta(e.target.value)
-                  setPreset(null)
-                }}
-              />
-            </label>
-          </div>
+  <SelectorFechaHora
+    etiqueta='Desde (hora Colombia)'
+    valor={desde}
+    horaPorDefecto='00:00'
+    onCambiar={(v) => {
+      setDesde(v)
+      setPreset(null)
+    }}
+  />
+  <SelectorFechaHora
+    etiqueta='Hasta (hora Colombia)'
+    valor={hasta}
+    horaPorDefecto='23:59'
+    onCambiar={(v) => {
+      setHasta(v)
+      setPreset(null)
+    }}
+  />
+</div>
 
           <div className='chips'>
             <button

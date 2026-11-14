@@ -40,6 +40,6 @@ export function formatoFechaHora(iso) {
       .formatToParts(new Date(iso))
       .map((x) => [x.type, x.value])
   )
-  const periodo = (p.dayPeriod || '').replace(/[\u00a0\u202f]/g, ' ')
+    const periodo = /p/i.test(p.dayPeriod || '') ? 'PM' : 'AM'
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute} ${periodo}`
 }
