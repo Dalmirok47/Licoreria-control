@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import Cabecera from '../componentes/Cabecera'
+import SelectorFechaHora from '../componentes/SelectorFechaHora'
 import { aIso, rangoDe } from '../lib/fechas'
 import { traerMovimientos, traerStock } from '../lib/datosReporte'
 import '../estilos/historial.css'
-import SelectorFechaHora from '../componentes/SelectorFechaHora'
 
 const PERIODOS = [
   { id: '24h', nombre: 'Últimas 24 h' },
@@ -22,6 +22,17 @@ const TIPOS = [
   { id: 'entrada', nombre: 'Entradas', color: 'var(--champan)' },
   { id: 'obsequio', nombre: 'Obsequios', color: 'var(--obsequio)' },
 ]
+
+function IconoDescarga() {
+  return (
+    <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor'
+      strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+      <path d='M12 3v12' />
+      <path d='m7 11 5 5 5-5' />
+      <path d='M5 21h14' />
+    </svg>
+  )
+}
 
 export default function Reportes({ perfil }) {
   const inicial = rangoDe('quincena')
@@ -57,8 +68,10 @@ export default function Reportes({ perfil }) {
     }
   }, [desde, hasta, rangoInvalido])
 
+  const vigentes = movs.filter((m) => !m.anulado_en)
+  const anulados = movs.filter((m) => m.anulado_en)
   const unidades = {}
-  for (const m of movs) unidades[m.tipo] = (unidades[m.tipo] || 0) + m.cantidad
+  for (const m of vigentes) unidades[m.tipo] = (unidades[m.tipo] || 0) + m.cantidad
   const tipos = TIPOS.filter((t) => t.id !== 'obsequio' || unidades.obsequio)
 
   function elegirPeriodo(id) {
@@ -77,7 +90,8 @@ export default function Reportes({ perfil }) {
         traerStock(),
       ])
       await generarPdf({
-        movimientos: movs,
+        movimientos: vigentes,
+        anulados,
         stock,
         categorias,
         desdeTxt: desde,
@@ -95,7 +109,7 @@ export default function Reportes({ perfil }) {
     <div className='registrar'>
       <Cabecera perfil={perfil} />
 
-      <main className='historial'>
+      <main className='historial con-barra'>
         <h1 className='titulo izq'>Reportes</h1>
         <p className='subtitulo' style={{ textAlign: 'left' }}>
           Elige el periodo. El PDF incluye el stock actual de cada botella y todos los
@@ -118,34 +132,38 @@ export default function Reportes({ perfil }) {
           </div>
 
           <div className='rango'>
-             <SelectorFechaHora
-            etiqueta='Desde (hora Colombia)'
-                    valor={desde}
-                    horaPorDefecto='00:00'
-                        onCambiar={(v) => {
-                    setDesde(v)
-            setPreset(null)
-                }}
+            <SelectorFechaHora
+              etiqueta='Desde (hora Colombia)'
+              valor={desde}
+              horaPorDefecto='00:00'
+              onCambiar={(v) => {
+                setDesde(v)
+                setPreset(null)
+              }}
             />
             <SelectorFechaHora
-                    etiqueta='Hasta (hora Colombia)'
-                        valor={hasta}
-                            horaPorDefecto='23:59'
-                                 onCambiar={(v) => {
-                        setHasta(v)
+              etiqueta='Hasta (hora Colombia)'
+              valor={hasta}
+              horaPorDefecto='23:59'
+              onCambiar={(v) => {
+                setHasta(v)
                 setPreset(null)
-    }}
-  />
-</div>
-          <p className='detalle'>Si dejas &quot;Hasta&quot; vacío, el reporte llega hasta el momento de descargarlo.</p>
+              }}
+            />
+          </div>
+          <p className='detalle'>
+            Si dejas &quot;Hasta&quot; vacío, el reporte llega hasta el momento de descargarlo.
+          </p>
         </div>
 
-        {rangoInvalido && <p className='error'>La fecha &quot;Desde&quot; debe ser anterior a &quot;Hasta&quot;.</p>}
+        {rangoInvalido && (
+          <p className='error'>La fecha &quot;Desde&quot; debe ser anterior a &quot;Hasta&quot;.</p>
+        )}
         {error && <p className='error'>{error}</p>}
 
         <div className='estadisticas'>
           <div className='estadistica'>
-            <span className='estadistica-valor'>{cargando ? '...' : movs.length}</span>
+            <span className='estadistica-valor'>{cargando ? '...' : vigentes.length}</span>
             <span className='estadistica-nombre'>Movimientos</span>
           </div>
           {tipos.map((t) => (
@@ -156,14 +174,28 @@ export default function Reportes({ perfil }) {
           ))}
         </div>
 
-        <button
-          type='button'
-          className='boton-dorado accion-pdf'
-          onClick={descargar}
-          disabled={generando || cargando || rangoInvalido}
-        >
-          {generando ? 'Generando PDF...' : 'Descargar PDF'}
-        </button>
+        {anulados.length > 0 && (
+          <p className='detalle'>
+            {anulados.length} movimiento(s) anulado(s) en este periodo: no cuentan en los
+            totales y salen en una sección aparte del PDF.
+          </p>
+        )}
+
+        <div className='barra-accion'>
+          <div className='barra-resumen'>
+            <strong>{cargando ? 'Cargando...' : `${vigentes.length} movimientos`}</strong>
+            Incluye el stock actual
+          </div>
+          <button
+            type='button'
+            className='boton-dorado'
+            onClick={descargar}
+            disabled={generando || cargando || rangoInvalido}
+          >
+            <IconoDescarga />
+            {generando ? 'Generando...' : 'Descargar PDF'}
+          </button>
+        </div>
       </main>
     </div>
   )

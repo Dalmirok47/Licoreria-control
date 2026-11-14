@@ -45,7 +45,7 @@ export default function App() {
     }
     supabase
       .from('perfiles')
-      .select('nombre, rol')
+      .select('nombre, rol, puede_anular')
       .eq('id', sesion.user.id)
       .maybeSingle()
       .then(({ data }) => setPerfil(data ?? null))

@@ -9,8 +9,8 @@ export async function traerMovimientos(desdeIso, hastaIso) {
     let q = supabase
       .from('movimientos')
       .select(
-        'id, creado_en, tipo, cantidad, zona, mesa, motivo, foto_path, producto_id, persona_id, productos(nombre, categoria_id), personas(nombre, grupo), perfiles(nombre)'
-      )
+  'id, creado_en, tipo, cantidad, zona, mesa, motivo, foto_path, anulado_en, motivo_anulacion, producto_id, persona_id, productos(nombre, categoria_id), personas(nombre, grupo), perfiles!usuario_id(nombre), anulador:perfiles!anulado_por(nombre)'
+)
       .order('creado_en', { ascending: true })
       .order('id', { ascending: true })
       .range(inicio, inicio + PAGINA - 1)

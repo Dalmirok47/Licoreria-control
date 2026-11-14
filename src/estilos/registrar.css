@@ -276,3 +276,17 @@
   .cabecera-usuario span { display: none; }
   .enlace { padding: 8px 12px; }
 }
+@media (max-width: 640px) {
+  .cabecera { flex-wrap: wrap; row-gap: 10px; padding-bottom: 10px; }
+  .cabecera-logo { height: 38px; }
+  .cabecera-usuario { margin-left: auto; gap: 10px; }
+  .cabecera-usuario span {
+    display: inline;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .navegacion { order: 3; width: 100%; }
+  .enlace { flex: 1; text-align: center; padding: 10px 8px; }
+}

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Cabecera from '../componentes/Cabecera'
-import '../estilos/historial.css'
 import SelectorFechaHora from '../componentes/SelectorFechaHora'
+import { aIso, rangoDe, formatoFechaHora } from '../lib/fechas'
+import '../estilos/historial.css'
 
-const TZ = 'America/Bogota'
 const TAM = 40
 
 const TIPOS = {
@@ -24,35 +24,6 @@ const PERIODOS = [
   { id: 'quincena', nombre: 'Quincena' },
   { id: 'todo', nombre: 'Todo' },
 ]
-
-// Fecha y hora de Colombia en formato "YYYY-MM-DDTHH:mm" (el que usan los inputs)
-const ahoraCol = (d = new Date()) =>
-  d.toLocaleString('sv-SE', { timeZone: TZ }).slice(0, 16).replace(' ', 'T')
-
-// Texto del input (hora Colombia) -> fecha ISO para consultar
-const aIso = (texto) => (texto ? new Date(`${texto}:00-05:00`).toISOString() : null)
-
-function rangoDe(id) {
-  const ahora = new Date()
-  if (id === '24h') return { desde: ahoraCol(new Date(ahora.getTime() - 24 * 3600 * 1000)), hasta: '' }
-  if (id === '7d') return { desde: ahoraCol(new Date(ahora.getTime() - 7 * 24 * 3600 * 1000)), hasta: '' }
-  if (id === 'quincena') {
-    const hoy = ahoraCol(ahora).slice(0, 10)
-    const dia = Number(hoy.slice(8, 10))
-    return { desde: `${hoy.slice(0, 8)}${dia <= 15 ? '01' : '16'}T00:00`, hasta: '' }
-  }
-  return { desde: '', hasta: '' }
-}
-
-const formatoHora = (iso) =>
-  new Date(iso).toLocaleString('es-CO', {
-    timeZone: TZ,
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
 
 function destino(f) {
   if (f.tipo === 'venta' && f.mesa) {
@@ -74,14 +45,20 @@ export default function Historial({ perfil }) {
   const [hayMas, setHayMas] = useState(false)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [version, setVersion] = useState(0)
   const [visor, setVisor] = useState(null)
+
+  const [anulando, setAnulando] = useState(null)
+  const [motivoAnul, setMotivoAnul] = useState('')
+  const [procesando, setProcesando] = useState(false)
+  const [errorAnul, setErrorAnul] = useState('')
 
   const consultar = useCallback(
     (inicio) => {
       let q = supabase
         .from('movimientos')
         .select(
-          'id, creado_en, tipo, cantidad, zona, mesa, motivo, foto_path, productos(nombre), personas(nombre), perfiles(nombre)'
+          'id, creado_en, tipo, cantidad, zona, mesa, motivo, foto_path, anulado_en, motivo_anulacion, productos(nombre), personas(nombre), perfiles!usuario_id(nombre), anulador:perfiles!anulado_por(nombre)'
         )
         .order('creado_en', { ascending: false })
         .range(inicio, inicio + TAM - 1)
@@ -115,7 +92,7 @@ export default function Historial({ perfil }) {
     return () => {
       activo = false
     }
-  }, [consultar])
+  }, [consultar, version])
 
   async function cargarMas() {
     const { data, error: err } = await consultar(filas.length)
@@ -165,6 +142,33 @@ export default function Historial({ perfil }) {
     return () => window.removeEventListener('keydown', alTeclear)
   }, [visor])
 
+  function abrirAnular(fila) {
+    setAnulando(fila)
+    setMotivoAnul('')
+    setErrorAnul('')
+  }
+
+  function cerrarAnular() {
+    if (!procesando) setAnulando(null)
+  }
+
+  async function confirmarAnulacion() {
+    setErrorAnul('')
+    setProcesando(true)
+    const { error: err } = await supabase.rpc('anular_movimiento', {
+      p_id: anulando.id,
+      p_motivo: motivoAnul.trim(),
+    })
+    setProcesando(false)
+    if (err) {
+      console.error(err)
+      setErrorAnul(err.message || 'No se pudo anular el movimiento.')
+      return
+    }
+    setAnulando(null)
+    setVersion((v) => v + 1)
+  }
+
   return (
     <div className='registrar'>
       <Cabecera perfil={perfil} />
@@ -190,25 +194,25 @@ export default function Historial({ perfil }) {
           </div>
 
           <div className='rango'>
-  <SelectorFechaHora
-    etiqueta='Desde (hora Colombia)'
-    valor={desde}
-    horaPorDefecto='00:00'
-    onCambiar={(v) => {
-      setDesde(v)
-      setPreset(null)
-    }}
-  />
-  <SelectorFechaHora
-    etiqueta='Hasta (hora Colombia)'
-    valor={hasta}
-    horaPorDefecto='23:59'
-    onCambiar={(v) => {
-      setHasta(v)
-      setPreset(null)
-    }}
-  />
-</div>
+            <SelectorFechaHora
+              etiqueta='Desde (hora Colombia)'
+              valor={desde}
+              horaPorDefecto='00:00'
+              onCambiar={(v) => {
+                setDesde(v)
+                setPreset(null)
+              }}
+            />
+            <SelectorFechaHora
+              etiqueta='Hasta (hora Colombia)'
+              valor={hasta}
+              horaPorDefecto='23:59'
+              onCambiar={(v) => {
+                setHasta(v)
+                setPreset(null)
+              }}
+            />
+          </div>
 
           <div className='chips'>
             <button
@@ -255,10 +259,10 @@ export default function Historial({ perfil }) {
             const t = TIPOS[f.tipo] || { nombre: f.tipo, color: 'var(--champan)' }
             const dest = destino(f)
             return (
-              <article className='registro' key={f.id}>
+              <article className={'registro' + (f.anulado_en ? ' anulado' : '')} key={f.id}>
                 <div className='registro-cabeza'>
                   <div>
-                    <div className='registro-hora'>{formatoHora(f.creado_en)}</div>
+                    <div className='registro-hora'>{formatoFechaHora(f.creado_en)}</div>
                     <h2 className='registro-producto'>{f.productos?.nombre || 'Producto'}</h2>
                   </div>
                   <span className='etiqueta-tipo' style={{ '--c': t.color }}>
@@ -271,8 +275,14 @@ export default function Historial({ perfil }) {
                   <span>Registró: <strong>{f.perfiles?.nombre || '—'}</strong></span>
                 </div>
                 {f.motivo && <p className='registro-comentario'>“{f.motivo}”</p>}
-                {f.foto_path && (
-                  <div className='registro-pie'>
+                {f.anulado_en && (
+                  <p className='registro-anulacion'>
+                    ANULADO por {f.anulador?.nombre || '—'} · {formatoFechaHora(f.anulado_en)}
+                    {f.motivo_anulacion ? ` · “${f.motivo_anulacion}”` : ''}
+                  </p>
+                )}
+                <div className='registro-pie'>
+                  {f.foto_path && (
                     <button
                       type='button'
                       className='boton-contorno chico'
@@ -280,8 +290,17 @@ export default function Historial({ perfil }) {
                     >
                       Ver foto
                     </button>
-                  </div>
-                )}
+                  )}
+                  {perfil.puede_anular && !f.anulado_en && (
+                    <button
+                      type='button'
+                      className='boton-contorno chico'
+                      onClick={() => abrirAnular(f)}
+                    >
+                      Anular
+                    </button>
+                  )}
+                </div>
               </article>
             )
           })}
@@ -300,10 +319,47 @@ export default function Historial({ perfil }) {
           {!visor.url && !visor.error && <p className='subtitulo'>Cargando foto...</p>}
           {visor.error && <p className='error'>{visor.error}</p>}
           <p className='visor-pie'>
-            {visor.fila.productos?.nombre} · {formatoHora(visor.fila.creado_en)}
+            {visor.fila.productos?.nombre} · {formatoFechaHora(visor.fila.creado_en)}
             {visor.fila.motivo ? ` · “${visor.fila.motivo}”` : ''}
           </p>
           <button type='button' className='boton-contorno'>Cerrar</button>
+        </div>
+      )}
+
+      {anulando && (
+        <div className='visor' role='dialog' aria-modal='true' onClick={cerrarAnular}>
+          <div className='modal-caja' onClick={(e) => e.stopPropagation()}>
+            <h2 className='panel-nombre'>Anular movimiento</h2>
+            <p className='registro-comentario'>
+              {anulando.cantidad} × {anulando.productos?.nombre} · {formatoFechaHora(anulando.creado_en)}
+            </p>
+            <p className='detalle'>
+              No se borra: queda marcado como anulado con tu nombre, la hora y el motivo, y
+              deja de contar en el stock y en los totales.
+            </p>
+            <label className='etiqueta' htmlFor='motivo-anulacion'>Motivo (obligatorio)</label>
+            <input
+              id='motivo-anulacion'
+              className='campo'
+              placeholder='Ej: se registró dos veces por error'
+              value={motivoAnul}
+              onChange={(e) => setMotivoAnul(e.target.value)}
+            />
+            {errorAnul && <p className='error' role='alert'>{errorAnul}</p>}
+            <div className='acciones-modal'>
+              <button type='button' className='boton-contorno' onClick={cerrarAnular}>
+                Cancelar
+              </button>
+              <button
+                type='button'
+                className='boton-dorado'
+                disabled={procesando || !motivoAnul.trim()}
+                onClick={confirmarAnulacion}
+              >
+                {procesando ? 'Anulando...' : 'Anular'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
