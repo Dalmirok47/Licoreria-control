@@ -49,3 +49,27 @@
 }
 .visor img { max-width: 100%; max-height: 68dvh; object-fit: contain; border-radius: 14px; }
 .visor-pie { max-width: 520px; text-align: center; font-size: 14px; color: var(--texto); }
+
+.estadisticas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.estadistica {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #171717, #101010);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--c, var(--dorado));
+}
+.estadistica-valor { font: 700 24px Inter, sans-serif; }
+.estadistica-nombre {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+.accion-pdf { position: sticky; bottom: 12px; }

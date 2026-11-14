@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase'
 import Login from './pantallas/Login'
 import RegistrarSalida from './pantallas/RegistrarSalida'
 import Historial from './pantallas/Historial'
+import Reportes from './pantallas/Reportes'
 
 function Cargando() {
   return (
@@ -60,6 +61,10 @@ export default function App() {
       <Routes>
         <Route path='/' element={<RegistrarSalida perfil={perfil} />} />
         <Route path='/historial' element={<Historial perfil={perfil} />} />
+        <Route
+          path='/reportes'
+          element={perfil.rol === 'admin' ? <Reportes perfil={perfil} /> : <Navigate to='/' />}
+        />
         <Route path='*' element={<Navigate to='/' />} />
       </Routes>
     </BrowserRouter>
